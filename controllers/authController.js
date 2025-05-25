@@ -1,0 +1,375 @@
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+const User = require('../models/User');
+const ApiResponse = require('../utils/apiResponse');
+
+// Nodemailer setup
+console.log('Nodemailer: Initializing transporter');
+console.log('Nodemailer: EMAIL_USER=', process.env.EMAIL_USER);
+console.log('Nodemailer: EMAIL_PASS=', process.env.EMAIL_PASS ? '[REDACTED]' : 'undefined');
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+// Signup Controller
+const signup = async (req, res) => {
+  console.log('Signup: Request received', req.body);
+  try {
+    const { email, password } = req.body;
+
+    // Validate input
+    console.log('Signup: Validating input');
+    if (!email || !password) {
+      console.log('Signup: Missing email or password');
+      return res.status(400).json(new ApiResponse(400, 'Email and password are required'));
+    }
+
+    // Check if user exists
+    console.log('Signup: Checking if user exists');
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      console.log('Signup: User already exists', { email });
+      return res.status(400).json(new ApiResponse(400, 'User already exists'));
+    }
+
+    // Hash password
+    console.log('Signup: Hashing password');
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Generate OTP
+    console.log('Signup: Generating OTP');
+    const otp = crypto.randomInt(100000, 999999).toString();
+
+    // Create user
+    console.log('Signup: Creating user');
+    const user = new User({
+      email,
+      password: hashedPassword,
+      otp,
+    });
+    await user.save();
+    console.log('Signup: User saved', { email });
+
+    // Send OTP email
+    console.log('Signup: Sending OTP email');
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Verify Your Email',
+      text: `Your OTP for email verification is: ${otp}`,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('Signup: OTP email sent', { email });
+
+    res.status(201).json(new ApiResponse(201, 'User created. Please verify your email with OTP'));
+  } catch (error) {
+    console.error('Signup: Error occurred', error);
+    res.status(500).json(new ApiResponse(500, 'Error during signup', null, error.message));
+  }
+};
+
+// OTP Verification Controller
+const verifyOTP = async (req, res) => {
+  console.log('VerifyOTP: Request received', req.body);
+  try {
+    const { email, otp } = req.body;
+
+    // Validate input
+    console.log('VerifyOTP: Validating input');
+    if (!email || !otp) {
+      console.log('VerifyOTP: Missing email or OTP');
+      return res.status(400).json(new ApiResponse(400, 'Email and OTP are required'));
+    }
+
+    // Check if user exists
+    console.log('VerifyOTP: Checking if user exists');
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log('VerifyOTP: User not found', { email });
+      return res.status(404).json(new ApiResponse(404, 'User not found'));
+    }
+    if (user.isVerified) {
+      console.log('VerifyOTP: User already verified', { email });
+      return res.status(400).json(new ApiResponse(400, 'User already verified'));
+    }
+
+    // Verify OTP
+    console.log('VerifyOTP: Verifying OTP');
+    if (user.otp !== otp) {
+      console.log('VerifyOTP: Invalid OTP', { email, otp });
+      return res.status(400).json(new ApiResponse(400, 'Invalid OTP'));
+    }
+
+    // Update user
+    console.log('VerifyOTP: Updating user verification status');
+    user.isVerified = true;
+    user.otp = null; // Clear OTP after verification
+    await user.save();
+    console.log('VerifyOTP: User verified', { email });
+
+    // Generate JWT
+    console.log('VerifyOTP: Generating JWT');
+    const token = jwt.sign(
+      { id: user._id, email: user.email, isProfileFlag: user.isProfileFlag },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    res.status(200).json(new ApiResponse(200, 'Email verified successfully', { token }));
+  } catch (error) {
+    console.error('VerifyOTP: Error occurred', error);
+    res.status(500).json(new ApiResponse(500, 'Error during OTP verification', null, error.message));
+  }
+};
+
+// Login Controller
+const login = async (req, res) => {
+  console.log('Login: Request received', req.body);
+  try {
+    const { email, password } = req.body;
+
+    // Validate input
+    console.log('Login: Validating input');
+    if (!email || !password) {
+      console.log('Login: Missing email or password');
+      return res.status(400).json(new ApiResponse(400, 'Email and password are required', null, 'Missing required fields'));
+    }
+
+    // Check if user exists
+    console.log('Login: Checking if user exists');
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log('Login: User not found', { email });
+      return res.status(404).json(new ApiResponse(404, 'User not found', null, 'User does not exist'));
+    }
+
+    // Check if user is verified
+    console.log('Login: Checking verification status');
+    if (!user.isVerified) {
+      console.log('Login: User not verified', { email });
+      return res.status(400).json(new ApiResponse(400, 'Please verify your email first', null, 'Email not verified'));
+    }
+
+    // Verify password
+    console.log('Login: Verifying password');
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      console.log('Login: Invalid credentials', { email });
+      return res.status(400).json(new ApiResponse(400, 'Invalid credentials', null, 'Incorrect password'));
+    }
+
+    // Generate JWT
+    console.log('Login: Generating JWT');
+    const token = jwt.sign(
+      { id: user._id, email: user.email, isProfileFlag: user.isProfileFlag },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    res.status(200).json(new ApiResponse(200, 'Login successful', { token }, null));
+  } catch (error) {
+    console.error('Login: Error occurred', error);
+    res.status(500).json(new ApiResponse(500, 'Error during login', null, error.message));
+  }
+};
+
+// Profile Controller
+const getProfile = async (req, res) => {
+  console.log('GetProfile: Request received', { userId: req.user.id });
+  try {
+    console.log('GetProfile: Fetching user');
+    const user = await User.findById(req.user.id).select('-password -otp');
+    res.status(200).json(new ApiResponse(200, 'Profile retrieved', { user }));
+  } catch (error) {
+    console.error('GetProfile: Error occurred', error);
+    res.status(500).json(new ApiResponse(500, 'Error retrieving profile', null, error.message));
+  }
+};
+
+// Middleware to verify JWT
+const authenticateToken = (req, res, next) => {
+  console.log('AuthenticateToken: Checking token');
+  const authHeader = req.headers['authorization'];
+  console.log("authHeader", authHeader);
+  const token = authHeader && authHeader.split(' ')[1];
+  console.log("token", token);
+
+  if (!token) {
+    console.log('AuthenticateToken: Token missing');
+    return res.status(401).json(new ApiResponse(401, 'Access token missing'));
+  }
+
+  console.log('AuthenticateToken: Verifying token');
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      console.log('AuthenticateToken: Invalid token', err);
+      return res.status(403).json(new ApiResponse(403, 'Invalid token', null, err.message));
+    }
+    req.user = user;
+    console.log('AuthenticateToken: Token verified', { user });
+    next();
+  });
+};
+
+// Forgot Password Controller
+const forgotPassword = async (req, res) => {
+  console.log('ForgotPassword: Request received', req.body);
+  try {
+    const { email } = req.body;
+
+    // Validate input
+    console.log('ForgotPassword: Validating input');
+    if (!email) {
+      console.log('ForgotPassword: Missing email');
+      return res.status(400).json(new ApiResponse(400, 'Email is required'));
+    }
+
+    // Check if user exists
+    console.log('ForgotPassword: Checking if user exists');
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log('ForgotPassword: User not found', { email });
+      return res.status(404).json(new ApiResponse(404, 'User not found'));
+    }
+    if (!user.isVerified) {
+      console.log('ForgotPassword: User not verified', { email });
+      return res.status(400).json(new ApiResponse(400, 'Please verify your email first'));
+    }
+
+    // Generate OTP
+    console.log('ForgotPassword: Generating OTP');
+    const otp = crypto.randomInt(100000, 999999).toString();
+    user.otp = otp;
+    await user.save();
+    console.log('ForgotPassword: OTP saved', { email, otp });
+
+    // Send OTP email
+    console.log('ForgotPassword: Sending OTP email');
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Password Reset OTP',
+      text: `Your OTP for password reset is: ${otp}`,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('ForgotPassword: OTP email sent', { email });
+
+    res.status(200).json(new ApiResponse(200, 'Password reset OTP sent to your email'));
+  } catch (error) {
+    console.error('ForgotPassword: Error occurred', error);
+    res.status(500).json(new ApiResponse(500, 'Error during forgot password', null, error.message));
+  }
+};
+
+// Reset Password Controller
+const resetPassword = async (req, res) => {
+  console.log('ResetPassword: Request received', req.body);
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    // Validate input
+    console.log('ResetPassword: Validating input');
+    if (!email || !otp || !newPassword) {
+      console.log('ResetPassword: Missing email, OTP, or new password');
+      return res.status(400).json(new ApiResponse(400, 'Email, OTP, and new password are required'));
+    }
+
+    // Check if user exists
+    console.log('ResetPassword: Checking if user exists');
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log('ResetPassword: User not found', { email });
+      return res.status(404).json(new ApiResponse(404, 'User not found'));
+    }
+    if (!user.isVerified) {
+      console.log('ResetPassword: User not verified', { email });
+      return res.status(400).json(new ApiResponse(400, 'User not verified'));
+    }
+
+    // Verify OTP
+    console.log('ResetPassword: Verifying OTP');
+    if (user.otp !== otp) {
+      console.log('ResetPassword: Invalid OTP', { email, otp });
+      return res.status(400).json(new ApiResponse(400, 'Invalid OTP'));
+    }
+
+    // Hash new password
+    console.log('ResetPassword: Hashing new password');
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    user.otp = null; // Clear OTP after reset
+    await user.save();
+    console.log('ResetPassword: Password reset successful', { email });
+
+    res.status(200).json(new ApiResponse(200, 'Password reset successfully'));
+  } catch (error) {
+    console.error('ResetPassword: Error occurred', error);
+    res.status(500).json(new ApiResponse(500, 'Error during password reset', null, error.message));
+  }
+};
+
+// Resend OTP Controller
+const resendOTP = async (req, res) => {
+  console.log('ResendOTP: Request received', req.body);
+  try {
+    const { email } = req.body;
+
+    // Validate input
+    console.log('ResendOTP: Validating input');
+    if (!email) {
+      console.log('ResendOTP: Missing email');
+      return res.status(400).json(new ApiResponse(400, 'Email is required'));
+    }
+
+    // Check if user exists
+    console.log('ResendOTP: Checking if user exists');
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log('ResendOTP: User not found', { email });
+      return res.status(404).json(new ApiResponse(404, 'User not found'));
+    }
+
+    // Generate new OTP
+    console.log('ResendOTP: Generating new OTP');
+    const otp = crypto.randomInt(100000, 999999).toString();
+    user.otp = otp;
+    await user.save();
+    console.log('ResendOTP: OTP saved', { email, otp });
+
+    // Send OTP email
+    console.log('ResendOTP: Sending OTP email');
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: user.isVerified ? 'Password Reset OTP' : 'Verify Your Email',
+      text: `Your OTP is: ${otp}`,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('ResendOTP: OTP email sent', { email });
+
+    res.status(200).json(new ApiResponse(200, `OTP resent to your email for ${user.isVerified ? 'password reset' : 'email verification'}`));
+  } catch (error) {
+    console.error('ResendOTP: Error occurred', error);
+    res.status(500).json(new ApiResponse(500, 'Error during OTP resend', null, error.message));
+  }
+};
+
+module.exports = {
+  signup,
+  verifyOTP,
+  login,
+  getProfile,
+  authenticateToken,
+  forgotPassword,
+  resetPassword,
+  resendOTP,
+};
