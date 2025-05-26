@@ -253,17 +253,21 @@ const createOrUpdateProfile = async (req, res) => {
 };
 
 const getProfile = async (req, res) => {
-  if (isDev) console.log('GetProfile: Request received', { userId: req.user.id });
+  if (!req.user || !req.user.id) {
+    console.log('GetProfile: No user ID in request');
+    return res.status(401).json(new ApiResponse(401, 'Unauthorized: No user ID'));
+  }
+  console.log('GetProfile: Request received', { userId: req.user.id });
   try {
-const profile = await Profile.findOne({ userId }).populate('userId', 'email isProfileFlag');
+    const profile = await Profile.findOne({ userId: req.user.id }).populate('userId', 'email isProfileFlag');
     if (!profile) {
-      if (isDev) console.log('GetProfile: Profile not found');
+      console.log('GetProfile: Profile not found');
       return res.status(404).json(new ApiResponse(404, 'Profile not found'));
     }
-    if (isDev) console.log('GetProfile: Profile retrieved', { profileId: profile._id });
+    console.log('GetProfile: Profile retrieved', { profileId: profile._id });
     res.status(200).json(new ApiResponse(200, 'Profile retrieved', { profile: transformProfileForFrontend(profile) }));
   } catch (error) {
-    if (isDev) console.error('GetProfile: Error occurred', error);
+    console.error('GetProfile: Error occurred', error);
     res.status(500).json(new ApiResponse(500, 'Error retrieving profile', null, error.message));
   }
 };

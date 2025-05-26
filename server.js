@@ -20,7 +20,12 @@ const app = express();
 connectDB();
 
 // Middleware
-app.use(cors()); // <--- Enable CORS for all origins
+app.use(cors({
+  origin: ['https://vipravivah.in', 'https://www.vipravivah.in'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
+ // <--- Enable CORS for all origins
 app.use(express.json());
 
 // Routes
