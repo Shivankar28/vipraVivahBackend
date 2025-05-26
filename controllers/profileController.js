@@ -286,6 +286,11 @@ const exploreProfiles = async (req, res) => {
     if (gender && gender !== 'Any') query.gender = gender;
     if (lookingFor && lookingFor !== 'Any') query.lookingFor = lookingFor;
 
+    // Exclude current user's profile
+    if (req.user && req.user.id) {
+      query.userId = { $ne: req.user.id }; // Exclude profile where userId matches current user
+    }
+
     // Fetch profiles with filters
     if (isDev) console.log('ExploreProfiles: Querying profiles', query);
     const profiles = await Profile.find(query)

@@ -21,7 +21,7 @@ const upload = multer({
 
 router.post('/', authenticateToken, upload.single('profilePhoto'), createOrUpdateProfile);
 router.get('/', authenticateToken, getProfile);
-router.get('/explore', exploreProfiles);
+router.get('/explore', authenticateToken, exploreProfiles);
 router.get('/:id', getProfileById);
 
 module.exports = router;

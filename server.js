@@ -21,7 +21,7 @@ connectDB();
 
 // Middleware
 app.use(cors({
-  origin: ['https://vipravivah.in', 'https://www.vipravivah.in'],
+  origin: ['https://vipravivah.in', 'https://www.vipravivah.in',"http://localhost:5173"],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
