@@ -3,7 +3,9 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const User = require('../models/User');
+const Subscription = require('../models/Subscription');
 const ApiResponse = require('../utils/apiResponse');
+const Profile = require('../models/Profile');
 
 // Nodemailer setup
 console.log('Nodemailer: Initializing transporter');
@@ -46,7 +48,7 @@ const signup = async (req, res) => {
     console.log('Signup: Generating OTP');
     const otp = crypto.randomInt(100000, 999999).toString();
 
-    // Create user
+    // Create user (subscription will be created by post-save middleware)
     console.log('Signup: Creating user');
     const user = new User({
       email,
@@ -114,10 +116,34 @@ const verifyOTP = async (req, res) => {
     await user.save();
     console.log('VerifyOTP: User verified', { email });
 
-    // Generate JWT
+    // Fetch subscription and check for expiration
+    console.log('VerifyOTP: Fetching subscription plan');
+    let subscription = await Subscription.findOne({ userId: user._id });
+    if (!subscription) {
+      console.log('VerifyOTP: Subscription not found, creating new', { userId: user._id });
+      subscription = new Subscription({
+        userId: user._id,
+        plan: 'free',
+        status: 'active',
+        subscriptionStart: new Date(),
+      });
+      await subscription.save();
+      user.subscription = subscription._id;
+      await user.save();
+    }
+    if (subscription.plan === 'premium' && subscription.subscriptionEnd < new Date()) {
+      console.log('VerifyOTP: Premium subscription expired, reverting to free', { userId: user._id });
+      subscription.plan = 'free';
+      subscription.status = 'inactive';
+      subscription.subscriptionEnd = null;
+      await subscription.save();
+    }
+    const plan = subscription.plan;
+
+    // Generate JWT with subscription plan
     console.log('VerifyOTP: Generating JWT');
     const token = jwt.sign(
-      { id: user._id, email: user.email, isProfileFlag: user.isProfileFlag },
+      { id: user._id, email: user.email, isProfileFlag: user.isProfileFlag, plan },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
@@ -165,10 +191,34 @@ const login = async (req, res) => {
       return res.status(400).json(new ApiResponse(400, 'Invalid credentials', null, 'Incorrect password'));
     }
 
-    // Generate JWT
+    // Fetch subscription and check for expiration
+    console.log('Login: Fetching subscription plan');
+    let subscription = await Subscription.findOne({ userId: user._id });
+    if (!subscription) {
+      console.log('Login: Subscription not found, creating new', { userId: user._id });
+      subscription = new Subscription({
+        userId: user._id,
+        plan: 'free',
+        status: 'active',
+        subscriptionStart: new Date(),
+      });
+      await subscription.save();
+      user.subscription = subscription._id;
+      await user.save();
+    }
+    if (subscription.plan === 'premium' && subscription.subscriptionEnd < new Date()) {
+      console.log('Login: Premium subscription expired, reverting to free', { userId: user._id });
+      subscription.plan = 'free';
+      subscription.status = 'inactive';
+      subscription.subscriptionEnd = null;
+      await subscription.save();
+    }
+    const plan = subscription.plan;
+
+    // Generate JWT with subscription plan
     console.log('Login: Generating JWT');
     const token = jwt.sign(
-      { id: user._id, email: user.email, isProfileFlag: user.isProfileFlag },
+      { id: user._id, email: user.email, isProfileFlag: user.isProfileFlag, plan },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
@@ -184,9 +234,14 @@ const login = async (req, res) => {
 const getProfile = async (req, res) => {
   console.log('GetProfile: Request received', { userId: req.user.id });
   try {
-    console.log('GetProfile: Fetching user');
+    // Fetch user info (excluding sensitive fields)
     const user = await User.findById(req.user.id).select('-password -otp');
-    res.status(200).json(new ApiResponse(200, 'Profile retrieved', { user }));
+    // Fetch profile info
+    const profile = await Profile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json(new ApiResponse(404, 'Profile not found', { user }));
+    }
+    res.status(200).json(new ApiResponse(200, 'Profile retrieved', { user, profile }));
   } catch (error) {
     console.error('GetProfile: Error occurred', error);
     res.status(500).json(new ApiResponse(500, 'Error retrieving profile', null, error.message));
@@ -197,9 +252,9 @@ const getProfile = async (req, res) => {
 const authenticateToken = (req, res, next) => {
   console.log('AuthenticateToken: Checking token');
   const authHeader = req.headers['authorization'];
-  console.log("authHeader", authHeader);
+  console.log('authHeader', authHeader);
   const token = authHeader && authHeader.split(' ')[1];
-  console.log("token", token);
+  console.log('token', token);
 
   if (!token) {
     console.log('AuthenticateToken: Token missing');
@@ -216,6 +271,49 @@ const authenticateToken = (req, res, next) => {
     console.log('AuthenticateToken: Token verified', { user });
     next();
   });
+};
+
+// Middleware to restrict access to premium users
+const restrictToPremium = async (req, res, next) => {
+  console.log('RestrictToPremium: Checking subscription status', { userId: req.user.id });
+  try {
+    // First, check JWT plan for quick validation
+    if (req.user.plan !== 'premium') {
+      console.log('RestrictToPremium: JWT indicates non-premium plan', { userId: req.user.id, plan: req.user.plan });
+      return res.status(403).json(new ApiResponse(403, 'Premium subscription required to access this feature'));
+    }
+
+    // Verify with database to prevent token tampering
+    const subscription = await Subscription.findOne({ userId: req.user.id });
+    if (!subscription) {
+      console.log('RestrictToPremium: Subscription not found', { userId: req.user.id });
+      return res.status(403).json(new ApiResponse(403, 'No subscription found. Please subscribe to access this feature.'));
+    }
+
+    if (subscription.plan !== 'premium' || subscription.status !== 'active') {
+      console.log('RestrictToPremium: User does not have an active premium subscription', {
+        userId: req.user.id,
+        plan: subscription.plan,
+        status: subscription.status,
+      });
+      return res.status(403).json(new ApiResponse(403, 'Premium subscription required to access this feature'));
+    }
+
+    if (subscription.plan === 'premium' && subscription.subscriptionEnd < new Date()) {
+      console.log('RestrictToPremium: Premium subscription expired', { userId: req.user.id });
+      subscription.plan = 'free';
+      subscription.status = 'inactive';
+      subscription.subscriptionEnd = null;
+      await subscription.save();
+      return res.status(403).json(new ApiResponse(403, 'Premium subscription has expired. Please renew to access this feature.'));
+    }
+
+    console.log('RestrictToPremium: Access granted', { userId: req.user.id });
+    next();
+  } catch (error) {
+    console.error('RestrictToPremium: Error occurred', error);
+    return res.status(500).json(new ApiResponse(500, 'Error checking subscription status', null, error.message));
+  }
 };
 
 // Forgot Password Controller
@@ -369,6 +467,7 @@ module.exports = {
   login,
   getProfile,
   authenticateToken,
+  restrictToPremium,
   forgotPassword,
   resetPassword,
   resendOTP,

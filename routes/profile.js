@@ -1,27 +1,31 @@
 const express = require('express');
 const { createOrUpdateProfile, getProfile, exploreProfiles, getProfileById } = require('../controllers/profileController');
-const { authenticateToken } = require('../controllers/authController');
+const { authenticateToken, restrictToPremium } = require('../controllers/authController');
 const multer = require('multer');
 
 const router = express.Router();
 
 const upload = multer({
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png/;
+    const filetypes = /jpeg|jpg|png|webp/;
     const mimetype = filetypes.test(file.mimetype);
     const extname = filetypes.test(file.originalname.split('.').pop().toLowerCase());
-    
+
     if (mimetype && extname) {
       return cb(null, true);
     }
-    cb(new Error('Only JPEG/PNG images are allowed'));
-  }
+    cb(new Error('Only JPEG, JPG, PNG, or WEBP images are allowed'));
+  },
 });
 
+// Route to create or update a user's profile with photo upload
 router.post('/', authenticateToken, upload.single('profilePhoto'), createOrUpdateProfile);
-router.get('/', authenticateToken, getProfile);
+
+// Route to explore other users' profiles
 router.get('/explore', authenticateToken, exploreProfiles);
-router.get('/:id', getProfileById);
+
+// Route to get a specific user's profile by ID (premium feature)
+router.get('/:id', authenticateToken, getProfileById);
 
 module.exports = router;
