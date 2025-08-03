@@ -49,7 +49,7 @@ const createOrder = async (req, res) => {
 
     // Razorpay order options
     const options = {
-      amount: 100,
+      amount: 50100,
       currency: "INR",
       receipt: receipt,
       payment_capture: 1, // Auto-capture payment
