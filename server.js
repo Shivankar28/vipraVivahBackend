@@ -11,6 +11,7 @@ const interestRoutes = require('../vipraVivahBackend/routes/interestRoutes');
 const subscriptionRoutes = require('./routes/subscription');
 const notificationRoutes = require('./routes/notificationRoutes');
 const preferenceRoutes = require('./routes/preferenceRoutes');
+const adminRoutes = require('./routes/admin');
 const multer = require('multer');
 
 console.log('server.js: Loading environment variables');
@@ -29,7 +30,7 @@ const io = socketIo(server, {
   cors: {
     origin: process.env.NODE_ENV === 'development' 
       ? "*" 
-      : ['https://vipravivah.in', 'https://www.vipravivah.in', 'https://api.vipravivah.in', 'http://localhost:5173'],
+      : ['https://vipravivah.in', 'https://www.vipravivah.in', 'http://localhost:3000', 'http://localhost:5173'],
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -44,7 +45,7 @@ app.use(
     origin:
       process.env.NODE_ENV === 'development'
         ? '*' // Allow all origins in development
-        : ['https://vipravivah.in', 'https://www.vipravivah.in', 'https://api.vipravivah.in', 'http://localhost:5173'],
+        : ['https://vipravivah.in', 'https://www.vipravivah.in', 'http://localhost:3000', 'http://localhost:5173'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   })
@@ -58,6 +59,7 @@ app.use('/api/interest', interestRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/preferences', preferenceRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Socket.IO authentication middleware
 io.use((socket, next) => {

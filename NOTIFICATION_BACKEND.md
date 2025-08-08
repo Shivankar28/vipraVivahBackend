@@ -209,10 +209,10 @@ const notifications = await Notification.find(query)
 ```bash
 # Test notification endpoints
 curl -H "Authorization: Bearer <token>" \
-  http://localhost:3000/api/notifications
+  https://api.vipravivah.in/api/notifications
 
 curl -H "Authorization: Bearer <token>" \
-  http://localhost:3000/api/notifications/unread-count
+  https://api.vipravivah.in/api/notifications/unread-count
 ```
 
 ### Database Testing

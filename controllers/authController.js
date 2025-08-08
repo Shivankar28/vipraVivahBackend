@@ -215,10 +215,10 @@ const login = async (req, res) => {
     }
     const plan = subscription.plan;
 
-    // Generate JWT with subscription plan
+    // Generate JWT with subscription plan and role
     console.log('Login: Generating JWT');
     const token = jwt.sign(
-      { id: user._id, email: user.email, isProfileFlag: user.isProfileFlag, plan },
+      { id: user._id, email: user.email, isProfileFlag: user.isProfileFlag, plan, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );

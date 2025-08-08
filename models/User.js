@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
   otp: { type: String },
   isVerified: { type: Boolean, default: false },
   isProfileFlag: { type: Boolean, default: false }, // New flag for profile completion
+  role: { type: String, enum: ['user', 'admin'], default: 'user' }, // Admin role
   createdAt: { type: Date, default: Date.now },
   subscription: {
     type: mongoose.Schema.Types.ObjectId,
