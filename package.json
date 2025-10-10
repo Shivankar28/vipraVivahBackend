@@ -4,8 +4,9 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "start": "nodemon server.js",
-    "dev": "nodemon server.js"
+    "start": "NODE_ENV=development nodemon server.js",
+    "dev": "NODE_ENV=development nodemon server.js",
+    "seed": "NODE_ENV=development node seed.js"
   },
   "keywords": [],
   "author": "",

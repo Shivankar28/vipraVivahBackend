@@ -28,8 +28,8 @@ const server = http.createServer(app);
 // Create Socket.IO server
 const io = socketIo(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'development' 
-      ? "*" 
+    origin: (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV)
+      ? ['http://localhost:5173', 'http://localhost:3000', 'http://192.168.1.5:5173', 'http://192.168.1.5:3000', /^http:\/\/192\.168\.1\.\d+:5173$/]
       : ['https://vipravivah.in', 'https://www.vipravivah.in', 'http://localhost:3000', 'http://localhost:5173'],
     methods: ['GET', 'POST'],
     credentials: true
@@ -42,10 +42,34 @@ connectDB();
 // Middleware
 app.use(
   cors({
-    origin:
-      process.env.NODE_ENV === 'development'
-        ? '*' // Allow all origins in development
-        : ['https://vipravivah.in', 'https://www.vipravivah.in', 'http://localhost:3000', 'http://localhost:5173'],
+    origin: (origin, callback) => {
+      console.log('CORS: Request from origin:', origin);
+      console.log('CORS: NODE_ENV:', process.env.NODE_ENV);
+      
+      const allowedOrigins = (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV)
+        ? ['http://localhost:5173', 'http://localhost:3000', 'http://192.168.1.5:5173', 'http://192.168.1.5:3000']
+        : ['https://vipravivah.in', 'https://www.vipravivah.in', 'http://localhost:3000', 'http://localhost:5173'];
+      
+      console.log('CORS: Allowed origins:', allowedOrigins);
+      
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      // Check if origin is in allowed list
+      if (allowedOrigins.includes(origin)) {
+        console.log('CORS: Origin allowed (exact match):', origin);
+        return callback(null, true);
+      }
+      
+      // Check pattern for local network in development
+      if ((process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) && /^http:\/\/192\.168\.1\.\d+:5173$/.test(origin)) {
+        console.log('CORS: Origin allowed (pattern match):', origin);
+        return callback(null, true);
+      }
+      
+      console.log('CORS: Origin blocked:', origin);
+      return callback(new Error('Not allowed by CORS'));
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   })
@@ -117,4 +141,8 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode with WebSocket support`));
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode with WebSocket support`);
+  console.log(`Local: http://localhost:${PORT}`);
+  console.log(`Network: http://0.0.0.0:${PORT}`);
+});
