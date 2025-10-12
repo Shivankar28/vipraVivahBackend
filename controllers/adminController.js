@@ -21,7 +21,7 @@ const isAdmin = async (req, res, next) => {
 // Get admin dashboard statistics
 const getDashboardStats = async (req, res) => {
   try {
-    console.log('Admin: Getting dashboard statistics');
+    //console.log('Admin: Getting dashboard statistics');
     
     const totalUsers = await User.countDocuments();
     const verifiedUsers = await User.countDocuments({ isVerified: true });
@@ -52,7 +52,7 @@ const getDashboardStats = async (req, res) => {
       profileCompletionRate: totalUsers > 0 ? ((profilesCreated / totalUsers) * 100).toFixed(2) : 0
     };
 
-    console.log('Admin: Dashboard stats retrieved', stats);
+    //console.log('Admin: Dashboard stats retrieved', stats);
     res.status(200).json(new ApiResponse(200, 'Dashboard statistics retrieved successfully', stats));
   } catch (error) {
     console.error('Admin: Error getting dashboard stats', error);
@@ -63,7 +63,7 @@ const getDashboardStats = async (req, res) => {
 // Get all users with pagination
 const getAllUsers = async (req, res) => {
   try {
-    console.log('Admin: Getting all users');
+    //console.log('Admin: Getting all users');
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -88,7 +88,7 @@ const getAllUsers = async (req, res) => {
       }
     };
 
-    console.log('Admin: Users retrieved successfully');
+    //console.log('Admin: Users retrieved successfully');
     res.status(200).json(new ApiResponse(200, 'Users retrieved successfully', result));
   } catch (error) {
     console.error('Admin: Error getting users', error);
@@ -99,7 +99,7 @@ const getAllUsers = async (req, res) => {
 // Get user details by ID
 const getUserById = async (req, res) => {
   try {
-    console.log('Admin: Getting user by ID', req.params.id);
+    //console.log('Admin: Getting user by ID', req.params.id);
     const user = await User.findById(req.params.id).populate('subscription');
     
     if (!user) {
@@ -116,7 +116,7 @@ const getUserById = async (req, res) => {
       interests
     };
 
-    console.log('Admin: User details retrieved successfully');
+    //console.log('Admin: User details retrieved successfully');
     res.status(200).json(new ApiResponse(200, 'User details retrieved successfully', userData));
   } catch (error) {
     console.error('Admin: Error getting user details', error);
@@ -127,7 +127,7 @@ const getUserById = async (req, res) => {
 // Update user role
 const updateUserRole = async (req, res) => {
   try {
-    console.log('Admin: Updating user role', req.params.id, req.body);
+    //console.log('Admin: Updating user role', req.params.id, req.body);
     const { role } = req.body;
 
     if (!role || !['user', 'admin'].includes(role)) {
@@ -144,7 +144,7 @@ const updateUserRole = async (req, res) => {
       return res.status(404).json(new ApiResponse(404, 'User not found'));
     }
 
-    console.log('Admin: User role updated successfully');
+    //console.log('Admin: User role updated successfully');
     res.status(200).json(new ApiResponse(200, 'User role updated successfully', user));
   } catch (error) {
     console.error('Admin: Error updating user role', error);
@@ -155,7 +155,7 @@ const updateUserRole = async (req, res) => {
 // Delete user
 const deleteUser = async (req, res) => {
   try {
-    console.log('Admin: Deleting user', req.params.id);
+    //console.log('Admin: Deleting user', req.params.id);
     
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -174,7 +174,7 @@ const deleteUser = async (req, res) => {
     await Subscription.deleteMany({ userId: user._id });
     await User.findByIdAndDelete(user._id);
 
-    console.log('Admin: User deleted successfully');
+    //console.log('Admin: User deleted successfully');
     res.status(200).json(new ApiResponse(200, 'User deleted successfully'));
   } catch (error) {
     console.error('Admin: Error deleting user', error);
@@ -185,7 +185,7 @@ const deleteUser = async (req, res) => {
 // Get all profiles with pagination
 const getAllProfiles = async (req, res) => {
   try {
-    console.log('Admin: Getting all profiles');
+    //console.log('Admin: Getting all profiles');
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -210,7 +210,7 @@ const getAllProfiles = async (req, res) => {
       }
     };
 
-    console.log('Admin: Profiles retrieved successfully');
+    //console.log('Admin: Profiles retrieved successfully');
     res.status(200).json(new ApiResponse(200, 'Profiles retrieved successfully', result));
   } catch (error) {
     console.error('Admin: Error getting profiles', error);
@@ -221,7 +221,7 @@ const getAllProfiles = async (req, res) => {
 // Get all subscriptions
 const getAllSubscriptions = async (req, res) => {
   try {
-    console.log('Admin: Getting all subscriptions');
+    //console.log('Admin: Getting all subscriptions');
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -246,7 +246,7 @@ const getAllSubscriptions = async (req, res) => {
       }
     };
 
-    console.log('Admin: Subscriptions retrieved successfully');
+    //console.log('Admin: Subscriptions retrieved successfully');
     res.status(200).json(new ApiResponse(200, 'Subscriptions retrieved successfully', result));
   } catch (error) {
     console.error('Admin: Error getting subscriptions', error);

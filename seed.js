@@ -14,11 +14,12 @@ const firstNamesMale = ['Rahul', 'Amit', 'Arjun', 'Vikram', 'Karan', 'Rohan', 'A
 const firstNamesFemale = ['Priya', 'Anjali', 'Sneha', 'Pooja', 'Kavita', 'Ritu', 'Neha', 'Divya', 'Shreya', 'Aarti', 'Sunita', 'Rekha', 'Meera', 'Anita', 'Sakshi'];
 const lastNames = ['Sharma', 'Gupta', 'Verma', 'Singh', 'Kumar', 'Patel', 'Mishra', 'Joshi', 'Agarwal', 'Pandey', 'Dubey', 'Chaturvedi', 'Tripathi', 'Tiwari', 'Rao'];
 const cities = ['Mumbai', 'Delhi', 'Bangalore', 'Pune', 'Hyderabad', 'Chennai', 'Kolkata', 'Ahmedabad', 'Jaipur', 'Lucknow', 'Indore', 'Nagpur', 'Surat', 'Chandigarh', 'Bhopal'];
-const motherTongues = ['Hindi', 'Marathi', 'Telugu', 'Tamil', 'Kannada', 'Bengali', 'Gujarati', 'Malayalam', 'Punjabi', 'Odia'];
-const subCastes = ['Brahmin', 'Rajput', 'Vaishya', 'Kayastha', 'Khatri', 'Reddy', 'Naidu', 'Nair', 'Maratha', 'Jat'];
+const motherTongues = ['hindi', 'marathi', 'telugu', 'tamil', 'kannada', 'bengali', 'gujarati', 'malayalam', 'konkani'];
+const subCastes = ['chitpavan', 'deshastha', 'karhade', 'kokanastha', 'saraswat', 'gaud_saraswat'];
 const gotras = ['Bharadwaj', 'Kashyap', 'Vashishth', 'Gautam', 'Jamadagni', 'Vishwamitra', 'Atri', 'Brighu', 'Angiras', 'Agastya'];
-const qualifications = ['B.Tech', 'M.Tech', 'MBA', 'B.Com', 'M.Com', 'BBA', 'MCA', 'B.Sc', 'M.Sc', 'CA', 'MBBS', 'B.Pharm', 'M.Pharm'];
-const occupations = ['Software Engineer', 'Business Analyst', 'Accountant', 'Teacher', 'Doctor', 'Entrepreneur', 'Manager', 'Consultant', 'Designer', 'Marketing Manager'];
+const qualifications = ['high_school', 'intermediate', 'diploma', 'bachelors', 'masters', 'phd'];
+const specializations = ['computer_science', 'information_technology', 'mechanical', 'electrical', 'civil', 'medicine', 'commerce', 'arts', 'science', 'management'];
+const occupations = ['software_engineer', 'doctor', 'engineer', 'teacher', 'business_owner', 'chartered_accountant', 'lawyer', 'banker', 'government_employee'];
 const companies = ['TCS', 'Infosys', 'Wipro', 'Accenture', 'Google India', 'Microsoft', 'Amazon', 'Flipkart', 'Cognizant', 'Tech Mahindra', 'HCL', 'Capgemini'];
 
 // Helper function to get random element from array
@@ -83,8 +84,8 @@ const seed = async () => {
     const hashedPassword = await bcrypt.hash('Demo@123', 10);
 
     for (let i = 1; i <= 30; i++) {
-      const gender = i % 2 === 0 ? 'Male' : 'Female';
-      const firstName = gender === 'Male' ? getRandomElement(firstNamesMale) : getRandomElement(firstNamesFemale);
+      const gender = i % 2 === 0 ? 'male' : 'female';
+      const firstName = gender === 'male' ? getRandomElement(firstNamesMale) : getRandomElement(firstNamesFemale);
       const lastName = getRandomElement(lastNames);
       
       const user = new User({
@@ -114,6 +115,7 @@ const seed = async () => {
       const subCaste = getRandomElement(subCastes);
       const gotra = getRandomElement(gotras);
       const qualification = getRandomElement(qualifications);
+      const specialization = getRandomElement(specializations);
       const occupation = getRandomElement(occupations);
       const company = getRandomElement(companies);
       const isWorking = Math.random() > 0.2;
@@ -121,7 +123,7 @@ const seed = async () => {
       const profile = new Profile({
         userId: user._id,
         profilePicture: null,
-        profileFor: i % 3 === 0 ? 'Son' : i % 3 === 1 ? 'Daughter' : 'Self',
+        profileFor: i % 3 === 0 ? 'son' : i % 3 === 1 ? 'daughter' : 'self',
         gender: gender,
         phoneNumber: generatePhone(),
         firstName: firstName,
@@ -132,14 +134,14 @@ const seed = async () => {
         isLivesWithFamily: i % 3 === 0 ? 'Yes' : 'No',
         dateOfBirth: dob,
         age: age,
-        lookingFor: gender === 'Male' ? 'Female' : 'Male',
-        height: gender === 'Male' ? `${Math.floor(Math.random() * 15) + 165} cm` : `${Math.floor(Math.random() * 15) + 150} cm`,
+        lookingFor: gender === 'male' ? 'female' : 'male',
+        height: `${gender === 'male' ? Math.floor(Math.random() * 15) + 165 : Math.floor(Math.random() * 15) + 150}`,
         Aged: age,
         subCaste: subCaste,
         gotra: gotra,
         motherTongue: motherTongue,
-        maritalStatus: i % 8 === 0 ? 'Divorced' : i % 15 === 0 ? 'Widowed' : 'Never Married',
-        foodHabit: i % 4 === 0 ? 'Non-Vegetarian' : 'Vegetarian',
+        maritalStatus: i % 8 === 0 ? 'divorced' : i % 15 === 0 ? 'widowed' : 'never_married',
+        foodHabit: i % 4 === 0 ? 'non_vegetarian' : 'vegetarian',
         currentAddress: {
           street: `${Math.floor(Math.random() * 100) + 1} MG Road`,
           city: city,
@@ -154,18 +156,18 @@ const seed = async () => {
         },
         isCurrentPermanentSame: i % 5 === 0,
         HighestQualification: qualification,
-        specialization: qualification.includes('Tech') ? 'Computer Science' : qualification.includes('Com') ? 'Finance' : 'General',
+        specialization: specialization,
         universityCollege: `${getRandomElement(['IIT', 'NIT', 'Mumbai University', 'Delhi University', 'Anna University'])}`,
         yearOfCompletion: `${2010 + Math.floor(Math.random() * 13)}`,
         currentWorking: isWorking ? 'Yes' : 'No',
         occupation: isWorking ? occupation : '',
         company: isWorking ? company : '',
         workLocation: isWorking ? city : '',
-        annualIncome: isWorking ? `${Math.floor(Math.random() * 30) + 5} LPA` : '0',
+        annualIncome: isWorking ? getRandomElement(['3-5', '5-7', '7-10', '10-15', '15-20', '20-30', '30-50', '50+']) : '0-3',
         instaUrl: i % 3 === 0 ? `https://instagram.com/${firstName.toLowerCase()}_${lastName.toLowerCase()}` : '',
         facebookUrl: i % 4 === 0 ? `https://facebook.com/${firstName.toLowerCase()}.${lastName.toLowerCase()}` : '',
         linkedinUrl: isWorking ? `https://linkedin.com/in/${firstName.toLowerCase()}-${lastName.toLowerCase()}` : '',
-        idCardName: 'Aadhar Card',
+        idCardName: getRandomElement(['aadhar', 'pan', 'passport', 'driving_license']),
         idCardNo: `${Math.floor(100000000000 + Math.random() * 899999999999)}`,
         createdAt: new Date(Date.now() - Math.floor(Math.random() * 90 * 24 * 60 * 60 * 1000)), // Random date in last 90 days
         updatedAt: new Date()
@@ -218,25 +220,25 @@ const seed = async () => {
       const preference = new UserPreference({
         userId: user._id,
         preferredAgeRange: {
-          min: gender === 'Male' ? 22 : 24,
-          max: gender === 'Male' ? 32 : 35
+          min: gender === 'male' ? 22 : 24,
+          max: gender === 'male' ? 32 : 35
         },
         preferredHeight: {
-          min: gender === 'Male' ? '150 cm' : '165 cm',
-          max: gender === 'Male' ? '170 cm' : '185 cm'
+          min: gender === 'male' ? '150' : '165',
+          max: gender === 'male' ? '170' : '185'
         },
-        preferredEducation: ['B.Tech', 'M.Tech', 'MBA', 'B.Com', 'M.Com'],
-        preferredOccupation: ['Software Engineer', 'Business Analyst', 'Manager'],
+        preferredEducation: ['bachelors', 'masters', 'phd'],
+        preferredOccupation: ['software_engineer', 'engineer', 'doctor', 'teacher'],
         preferredIncome: {
-          min: '5 LPA',
-          max: '25 LPA'
+          min: '3-5',
+          max: '20-30'
         },
         preferredCities: [profile.profile.currentAddress.city, ...cities.slice(0, 3)],
         preferredStates: ['Maharashtra', 'Karnataka', 'Delhi'],
         preferredCaste: [profile.profile.subCaste],
         preferredMotherTongue: [profile.profile.motherTongue],
-        preferredMaritalStatus: ['Never Married', 'Divorced'],
-        preferredFoodHabit: ['Vegetarian', 'Non-Vegetarian'],
+        preferredMaritalStatus: ['never_married', 'divorced'],
+        preferredFoodHabit: ['vegetarian', 'non_vegetarian'],
         enableMatchNotifications: i % 3 !== 0, // 66% enable notifications
         notificationFrequency: i % 2 === 0 ? 'immediate' : 'daily',
         criteriaWeights: {

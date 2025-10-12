@@ -9,7 +9,7 @@ const createOrUpdatePreferences = async (req, res) => {
     const userId = req.user.id;
     const preferenceData = req.body;
 
-    console.log('createOrUpdatePreferences: Request received', { userId, preferenceData });
+    //console.log('createOrUpdatePreferences: Request received', { userId, preferenceData });
 
     // Check if user has a profile
     const profile = await Profile.findOne({ userId });
@@ -24,7 +24,7 @@ const createOrUpdatePreferences = async (req, res) => {
       { new: true, upsert: true }
     );
 
-    console.log('createOrUpdatePreferences: Preferences saved', { preferences: preferences._id });
+    //console.log('createOrUpdatePreferences: Preferences saved', { preferences: preferences._id });
 
     res.status(200).json(new ApiResponse(200, 'Preferences saved successfully', { preferences }));
   } catch (error) {
@@ -38,7 +38,7 @@ const getUserPreferences = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    console.log('getUserPreferences: Request received', { userId });
+    //console.log('getUserPreferences: Request received', { userId });
 
     const preferences = await UserPreference.findOne({ userId });
     
@@ -46,7 +46,7 @@ const getUserPreferences = async (req, res) => {
       return res.status(404).json(new ApiResponse(404, 'No preferences found'));
     }
 
-    console.log('getUserPreferences: Preferences retrieved', { preferences: preferences._id });
+    //console.log('getUserPreferences: Preferences retrieved', { preferences: preferences._id });
 
     res.status(200).json(new ApiResponse(200, 'Preferences retrieved successfully', { preferences }));
   } catch (error) {
@@ -61,7 +61,7 @@ const findMatches = async (req, res) => {
     const userId = req.user.id;
     const { limit = 20, page = 1 } = req.query;
 
-    console.log('findMatches: Request received', { userId, limit, page });
+    //console.log('findMatches: Request received', { userId, limit, page });
 
     const preferences = await UserPreference.findOne({ userId });
     if (!preferences) {
@@ -92,12 +92,12 @@ const findMatches = async (req, res) => {
     const endIndex = startIndex + parseInt(limit);
     const paginatedMatches = sortedMatches.slice(startIndex, endIndex);
 
-    console.log('findMatches: Matches found', { 
-      total: matches.length, 
-      returned: paginatedMatches.length,
-      page,
-      limit
-    });
+    // console.log('findMatches: Matches found', { 
+    //   total: matches.length, 
+    //   returned: paginatedMatches.length,
+    //   page,
+    //   limit
+    // });
 
     res.status(200).json(new ApiResponse(200, 'Matches found successfully', {
       matches: paginatedMatches,
@@ -232,54 +232,54 @@ function getMatchReasons(preference, profile) {
 // Find users who would be interested in a new profile
 const findInterestedUsers = async (newProfile) => {
   try {
-    console.log('findInterestedUsers: Finding users interested in new profile', { 
-      profileId: newProfile._id,
-      profileData: {
-        age: newProfile.age,
-        gender: newProfile.gender,
-        lookingFor: newProfile.lookingFor,
-        subCaste: newProfile.subCaste,
-        occupation: newProfile.occupation,
-        HighestQualification: newProfile.HighestQualification,
-        currentAddress: newProfile.currentAddress
-      }
-    });
+    // console.log('findInterestedUsers: Finding users interested in new profile', { 
+    //   profileId: newProfile._id,
+    //   profileData: {
+    //     age: newProfile.age,
+    //     gender: newProfile.gender,
+    //     lookingFor: newProfile.lookingFor,
+    //     subCaste: newProfile.subCaste,
+    //     occupation: newProfile.occupation,
+    //     HighestQualification: newProfile.HighestQualification,
+    //     currentAddress: newProfile.currentAddress
+    //   }
+    // });
 
     const allPreferences = await UserPreference.find({ enableMatchNotifications: true });
-    console.log('findInterestedUsers: Found preferences with notifications enabled', { count: allPreferences.length });
+    //console.log('findInterestedUsers: Found preferences with notifications enabled', { count: allPreferences.length });
     
     const interestedUsers = [];
 
     for (const preference of allPreferences) {
       // Skip if this is the same user's preference
       if (preference.userId.toString() === newProfile.userId.toString()) {
-        console.log('findInterestedUsers: Skipping same user preference', { userId: preference.userId });
+        //console.log('findInterestedUsers: Skipping same user preference', { userId: preference.userId });
         continue;
       }
 
       const matchScore = calculateMatchScore(preference, newProfile);
-      console.log('findInterestedUsers: Calculated match score', { 
-        userId: preference.userId, 
-        matchScore, 
-        threshold: preference.matchThreshold,
-        meetsThreshold: matchScore >= preference.matchThreshold,
-        profileData: {
-          age: newProfile.age,
-          gender: newProfile.gender,
-          lookingFor: newProfile.lookingFor,
-          subCaste: newProfile.subCaste,
-          occupation: newProfile.occupation,
-          HighestQualification: newProfile.HighestQualification,
-          currentAddress: newProfile.currentAddress
-        },
-        preference: {
-          preferredAgeRange: preference.preferredAgeRange,
-          preferredEducation: preference.preferredEducation,
-          preferredOccupation: preference.preferredOccupation,
-          preferredCities: preference.preferredCities,
-          preferredCaste: preference.preferredCaste
-        }
-      });
+      // console.log('findInterestedUsers: Calculated match score', { 
+      //   userId: preference.userId, 
+      //   matchScore, 
+      //   threshold: preference.matchThreshold,
+      //   meetsThreshold: matchScore >= preference.matchThreshold,
+      //   profileData: {
+      //     age: newProfile.age,
+      //     gender: newProfile.gender,
+      //     lookingFor: newProfile.lookingFor,
+      //     subCaste: newProfile.subCaste,
+      //     occupation: newProfile.occupation,
+      //     HighestQualification: newProfile.HighestQualification,
+      //     currentAddress: newProfile.currentAddress
+      //   },
+      //   preference: {
+      //     preferredAgeRange: preference.preferredAgeRange,
+      //     preferredEducation: preference.preferredEducation,
+      //     preferredOccupation: preference.preferredOccupation,
+      //     preferredCities: preference.preferredCities,
+      //     preferredCaste: preference.preferredCaste
+      //   }
+      // });
       
       if (matchScore >= preference.matchThreshold) {
         interestedUsers.push({
@@ -287,16 +287,16 @@ const findInterestedUsers = async (newProfile) => {
           matchScore,
           matchReasons: getMatchReasons(preference, newProfile)
         });
-        console.log('findInterestedUsers: User meets threshold', { userId: preference.userId, matchScore });
+        //console.log('findInterestedUsers: User meets threshold', { userId: preference.userId, matchScore });
       } else {
-        console.log('findInterestedUsers: User below threshold', { userId: preference.userId, matchScore, threshold: preference.matchThreshold });
+        //console.log('findInterestedUsers: User below threshold', { userId: preference.userId, matchScore, threshold: preference.matchThreshold });
       }
     }
 
-    console.log('findInterestedUsers: Found interested users', { 
-      total: interestedUsers.length,
-      users: interestedUsers.map(u => ({ userId: u.userId, matchScore: u.matchScore }))
-    });
+    // console.log('findInterestedUsers: Found interested users', { 
+    //   total: interestedUsers.length,
+    //   users: interestedUsers.map(u => ({ userId: u.userId, matchScore: u.matchScore }))
+    // });
 
     return interestedUsers;
   } catch (error) {
@@ -343,13 +343,13 @@ const createDefaultPreferences = async (userId) => {
 
     const existingPreference = await UserPreference.findOne({ userId });
     if (existingPreference) {
-      console.log('createDefaultPreferences: User already has preferences');
+      //console.log('createDefaultPreferences: User already has preferences');
       return existingPreference;
     }
 
     const preference = new UserPreference(defaultPreferences);
     await preference.save();
-    console.log('createDefaultPreferences: Default preferences created for user', { userId });
+    //console.log('createDefaultPreferences: Default preferences created for user', { userId });
     return preference;
   } catch (error) {
     console.error('createDefaultPreferences: Error creating default preferences', error);

@@ -8,9 +8,9 @@ const ApiResponse = require('../utils/apiResponse');
 const Profile = require('../models/Profile');
 
 // Nodemailer setup
-console.log('Nodemailer: Initializing transporter');
-console.log('Nodemailer: EMAIL_USER=', process.env.EMAIL_USER);
-console.log('Nodemailer: EMAIL_PASS=', process.env.EMAIL_PASS ? '[REDACTED]' : 'undefined');
+//console.log('Nodemailer: Initializing transporter');
+//console.log('Nodemailer: EMAIL_USER=', process.env.EMAIL_USER);
+//console.log('Nodemailer: EMAIL_PASS=', process.env.EMAIL_PASS ? '[REDACTED]' : 'undefined');
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -21,45 +21,45 @@ const transporter = nodemailer.createTransport({
 
 // Signup Controller
 const signup = async (req, res) => {
-  console.log('Signup: Request received', req.body);
+  //console.log('Signup: Request received', req.body);
   try {
     const { email, password } = req.body;
 
     // Validate input
-    console.log('Signup: Validating input');
+    //console.log('Signup: Validating input');
     if (!email || !password) {
-      console.log('Signup: Missing email or password');
+      //console.log('Signup: Missing email or password');
       return res.status(400).json(new ApiResponse(400, 'Email and password are required'));
     }
 
     // Check if user exists
-    console.log('Signup: Checking if user exists');
+    //console.log('Signup: Checking if user exists');
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      console.log('Signup: User already exists', { email });
+      //console.log('Signup: User already exists', { email });
       return res.status(400).json(new ApiResponse(400, 'User already exists'));
     }
 
     // Hash password
-    console.log('Signup: Hashing password');
+    //console.log('Signup: Hashing password');
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Generate OTP
-    console.log('Signup: Generating OTP');
+    //console.log('Signup: Generating OTP');
     const otp = crypto.randomInt(100000, 999999).toString();
 
     // Create user (subscription will be created by post-save middleware)
-    console.log('Signup: Creating user');
+    //console.log('Signup: Creating user');
     const user = new User({
       email,
       password: hashedPassword,
       otp,
     });
     await user.save();
-    console.log('Signup: User saved', { email });
+    //console.log('Signup: User saved', { email });
 
     // Send OTP email
-    console.log('Signup: Sending OTP email');
+    //console.log('Signup: Sending OTP email');
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
@@ -68,7 +68,7 @@ const signup = async (req, res) => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log('Signup: OTP email sent', { email });
+    //console.log('Signup: OTP email sent', { email });
 
     res.status(201).json(new ApiResponse(201, 'User created. Please verify your email with OTP'));
   } catch (error) {
@@ -79,48 +79,48 @@ const signup = async (req, res) => {
 
 // OTP Verification Controller
 const verifyOTP = async (req, res) => {
-  console.log('VerifyOTP: Request received', req.body);
+  //console.log('VerifyOTP: Request received', req.body);
   try {
     const { email, otp } = req.body;
 
     // Validate input
-    console.log('VerifyOTP: Validating input');
+    //console.log('VerifyOTP: Validating input');
     if (!email || !otp) {
-      console.log('VerifyOTP: Missing email or OTP');
+      //console.log('VerifyOTP: Missing email or OTP');
       return res.status(400).json(new ApiResponse(400, 'Email and OTP are required'));
     }
 
     // Check if user exists
-    console.log('VerifyOTP: Checking if user exists');
+    //console.log('VerifyOTP: Checking if user exists');
     const user = await User.findOne({ email });
     if (!user) {
-      console.log('VerifyOTP: User not found', { email });
+      //console.log('VerifyOTP: User not found', { email });
       return res.status(404).json(new ApiResponse(404, 'User not found'));
     }
     if (user.isVerified) {
-      console.log('VerifyOTP: User already verified', { email });
+      //console.log('VerifyOTP: User already verified', { email });
       return res.status(400).json(new ApiResponse(400, 'User already verified'));
     }
 
     // Verify OTP
-    console.log('VerifyOTP: Verifying OTP');
+    //console.log('VerifyOTP: Verifying OTP');
     if (user.otp !== otp) {
-      console.log('VerifyOTP: Invalid OTP', { email, otp });
+      //console.log('VerifyOTP: Invalid OTP', { email, otp });
       return res.status(400).json(new ApiResponse(400, 'Invalid OTP'));
     }
 
     // Update user
-    console.log('VerifyOTP: Updating user verification status');
+    //console.log('VerifyOTP: Updating user verification status');
     user.isVerified = true;
     user.otp = null; // Clear OTP after verification
     await user.save();
-    console.log('VerifyOTP: User verified', { email });
+    //console.log('VerifyOTP: User verified', { email });
 
     // Fetch subscription and check for expiration
-    console.log('VerifyOTP: Fetching subscription plan');
+    //console.log('VerifyOTP: Fetching subscription plan');
     let subscription = await Subscription.findOne({ userId: user._id });
     if (!subscription) {
-      console.log('VerifyOTP: Subscription not found, creating new', { userId: user._id });
+      //console.log('VerifyOTP: Subscription not found, creating new', { userId: user._id });
       subscription = new Subscription({
         userId: user._id,
         plan: 'free',
@@ -132,7 +132,7 @@ const verifyOTP = async (req, res) => {
       await user.save();
     }
     if (subscription.plan === 'premium' && subscription.subscriptionEnd < new Date()) {
-      console.log('VerifyOTP: Premium subscription expired, reverting to free', { userId: user._id });
+      //console.log('VerifyOTP: Premium subscription expired, reverting to free', { userId: user._id });
       subscription.plan = 'free';
       subscription.status = 'inactive';
       subscription.subscriptionEnd = null;
@@ -141,7 +141,7 @@ const verifyOTP = async (req, res) => {
     const plan = subscription.plan;
 
     // Generate JWT with subscription plan
-    console.log('VerifyOTP: Generating JWT');
+    //console.log('VerifyOTP: Generating JWT');
     const token = jwt.sign(
       { id: user._id, email: user.email, isProfileFlag: user.isProfileFlag, plan },
       process.env.JWT_SECRET,
@@ -157,45 +157,45 @@ const verifyOTP = async (req, res) => {
 
 // Login Controller
 const login = async (req, res) => {
-  console.log('Login: Request received', req.body);
+  //console.log('Login: Request received', req.body);
   try {
     const { email, password } = req.body;
 
     // Validate input
-    console.log('Login: Validating input');
+    //console.log('Login: Validating input');
     if (!email || !password) {
-      console.log('Login: Missing email or password');
+      //console.log('Login: Missing email or password');
       return res.status(400).json(new ApiResponse(400, 'Email and password are required', null, 'Missing required fields'));
     }
 
     // Check if user exists
-    console.log('Login: Checking if user exists');
+    //console.log('Login: Checking if user exists');
     const user = await User.findOne({ email });
     if (!user) {
-      console.log('Login: User not found', { email });
+      //console.log('Login: User not found', { email });
       return res.status(404).json(new ApiResponse(404, 'User not found', null, 'User does not exist'));
     }
 
     // Check if user is verified
-    console.log('Login: Checking verification status');
+    //console.log('Login: Checking verification status');
     if (!user.isVerified) {
-      console.log('Login: User not verified', { email });
+      //console.log('Login: User not verified', { email });
       return res.status(400).json(new ApiResponse(400, 'Please verify your email first', null, 'Email not verified'));
     }
 
     // Verify password
-    console.log('Login: Verifying password');
+    //console.log('Login: Verifying password');
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      console.log('Login: Invalid credentials', { email });
+      //console.log('Login: Invalid credentials', { email });
       return res.status(400).json(new ApiResponse(400, 'Invalid credentials', null, 'Incorrect password'));
     }
 
     // Fetch subscription and check for expiration
-    console.log('Login: Fetching subscription plan');
+    //console.log('Login: Fetching subscription plan');
     let subscription = await Subscription.findOne({ userId: user._id });
     if (!subscription) {
-      console.log('Login: Subscription not found, creating new', { userId: user._id });
+      //console.log('Login: Subscription not found, creating new', { userId: user._id });
       subscription = new Subscription({
         userId: user._id,
         plan: 'free',
@@ -207,7 +207,7 @@ const login = async (req, res) => {
       await user.save();
     }
     if (subscription.plan === 'premium' && subscription.subscriptionEnd < new Date()) {
-      console.log('Login: Premium subscription expired, reverting to free', { userId: user._id });
+      //console.log('Login: Premium subscription expired, reverting to free', { userId: user._id });
       subscription.plan = 'free';
       subscription.status = 'inactive';
       subscription.subscriptionEnd = null;
@@ -216,7 +216,7 @@ const login = async (req, res) => {
     const plan = subscription.plan;
 
     // Generate JWT with subscription plan and role
-    console.log('Login: Generating JWT');
+    //console.log('Login: Generating JWT');
     const token = jwt.sign(
       { id: user._id, email: user.email, isProfileFlag: user.isProfileFlag, plan, role: user.role },
       process.env.JWT_SECRET,
@@ -232,16 +232,80 @@ const login = async (req, res) => {
 
 // Profile Controller
 const getProfile = async (req, res) => {
-  console.log('GetProfile: Request received', { userId: req.user.id });
+  console.log('GetProfile (AUTH): Request received', { userId: req.user.id });
   try {
     // Fetch user info (excluding sensitive fields)
     const user = await User.findById(req.user.id).select('-password -otp');
+    console.log('GetProfile (AUTH): User fetched', { userId: user._id, email: user.email });
+    
     // Fetch profile info
     const profile = await Profile.findOne({ userId: req.user.id });
+    console.log('GetProfile (AUTH): Profile query result', { hasProfile: !!profile });
+    
     if (!profile) {
+      console.log('GetProfile (AUTH): No profile found for user', { userId: req.user.id });
       return res.status(404).json(new ApiResponse(404, 'Profile not found', { user }));
     }
-    res.status(200).json(new ApiResponse(200, 'Profile retrieved', { user, profile }));
+    
+    console.log('GetProfile (AUTH): Raw profile from DB:', JSON.stringify(profile, null, 2));
+    
+    // Transform profile data to match frontend expectations
+    const transformedProfile = {
+      _id: profile._id,
+      userId: profile.userId,
+      profilePicture: profile.profilePicture,
+      profileFor: profile.profileFor,
+      gender: profile.gender,
+      phoneNumber: profile.phoneNumber,
+      firstName: profile.firstName,
+      middleName: profile.middleName,
+      lastName: profile.lastName,
+      fatherName: profile.fatherName,
+      motherName: profile.motherName,
+      isLivesWithFamily: profile.isLivesWithFamily,
+      dateOfBirth: profile.dateOfBirth,
+      age: profile.age,
+      lookingFor: profile.lookingFor,
+      height: profile.height,
+      Aged: profile.Aged,
+      subCaste: profile.subCaste,
+      gotra: profile.gotra,
+      motherTongue: profile.motherTongue,
+      maritalStatus: profile.maritalStatus,
+      foodHabit: profile.foodHabit,
+      currentAddress: profile.currentAddress,
+      permanentAddress: profile.permanentAddress,
+      isCurrentPermanentSame: profile.isCurrentPermanentSame,
+      HighestQualification: profile.HighestQualification,
+      specialization: profile.specialization,
+      universityCollege: profile.universityCollege,
+      yearOfCompletion: profile.yearOfCompletion,
+      currentWorking: profile.currentWorking,
+      occupation: profile.occupation,
+      company: profile.company,
+      workLocation: profile.workLocation,
+      annualIncome: profile.annualIncome,
+      instaUrl: profile.instaUrl,
+      facebookUrl: profile.facebookUrl,
+      linkedinUrl: profile.linkedinUrl,
+      idCardName: profile.idCardName,
+      idCardNo: profile.idCardNo,
+      createdAt: profile.createdAt,
+      updatedAt: profile.updatedAt,
+    };
+    
+    console.log('GetProfile (AUTH): Transformed profile being sent:', JSON.stringify(transformedProfile, null, 2));
+    console.log('GetProfile (AUTH): Key transformed fields:', {
+      HighestQualification: transformedProfile.HighestQualification,
+      universityCollege: transformedProfile.universityCollege,
+      instaUrl: transformedProfile.instaUrl,
+      facebookUrl: transformedProfile.facebookUrl,
+      linkedinUrl: transformedProfile.linkedinUrl,
+      idCardName: transformedProfile.idCardName,
+      idCardNo: transformedProfile.idCardNo
+    });
+    
+    res.status(200).json(new ApiResponse(200, 'Profile retrieved', { user, profile: transformedProfile }));
   } catch (error) {
     console.error('GetProfile: Error occurred', error);
     res.status(500).json(new ApiResponse(500, 'Error retrieving profile', null, error.message));
@@ -250,57 +314,57 @@ const getProfile = async (req, res) => {
 
 // Middleware to verify JWT
 const authenticateToken = (req, res, next) => {
-  console.log('AuthenticateToken: Checking token');
+  //console.log('AuthenticateToken: Checking token');
   const authHeader = req.headers['authorization'];
-  console.log('authHeader', authHeader);
+  //console.log('authHeader', authHeader);
   const token = authHeader && authHeader.split(' ')[1];
-  console.log('token', token);
+  //console.log('token', token);
 
   if (!token) {
-    console.log('AuthenticateToken: Token missing');
+    //console.log('AuthenticateToken: Token missing');
     return res.status(401).json(new ApiResponse(401, 'Access token missing'));
   }
 
-  console.log('AuthenticateToken: Verifying token');
+  //console.log('AuthenticateToken: Verifying token');
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
-      console.log('AuthenticateToken: Invalid token', err);
+      //console.log('AuthenticateToken: Invalid token', err);
       return res.status(403).json(new ApiResponse(403, 'Invalid token', null, err.message));
     }
     req.user = user;
-    console.log('AuthenticateToken: Token verified', { user });
+    //console.log('AuthenticateToken: Token verified', { user });
     next();
   });
 };
 
 // Middleware to restrict access to premium users
 const restrictToPremium = async (req, res, next) => {
-  console.log('RestrictToPremium: Checking subscription status', { userId: req.user.id });
+  //console.log('RestrictToPremium: Checking subscription status', { userId: req.user.id });
   try {
     // First, check JWT plan for quick validation
     if (req.user.plan !== 'premium') {
-      console.log('RestrictToPremium: JWT indicates non-premium plan', { userId: req.user.id, plan: req.user.plan });
+      //console.log('RestrictToPremium: JWT indicates non-premium plan', { userId: req.user.id, plan: req.user.plan });
       return res.status(403).json(new ApiResponse(403, 'Premium subscription required to access this feature'));
     }
 
     // Verify with database to prevent token tampering
     const subscription = await Subscription.findOne({ userId: req.user.id });
     if (!subscription) {
-      console.log('RestrictToPremium: Subscription not found', { userId: req.user.id });
+      //console.log('RestrictToPremium: Subscription not found', { userId: req.user.id });
       return res.status(403).json(new ApiResponse(403, 'No subscription found. Please subscribe to access this feature.'));
     }
 
     if (subscription.plan !== 'premium' || subscription.status !== 'active') {
-      console.log('RestrictToPremium: User does not have an active premium subscription', {
-        userId: req.user.id,
-        plan: subscription.plan,
-        status: subscription.status,
-      });
+      // console.log('RestrictToPremium: User does not have an active premium subscription', {
+      //   userId: req.user.id,
+      //   plan: subscription.plan,
+      //   status: subscription.status,
+      // });
       return res.status(403).json(new ApiResponse(403, 'Premium subscription required to access this feature'));
     }
 
     if (subscription.plan === 'premium' && subscription.subscriptionEnd < new Date()) {
-      console.log('RestrictToPremium: Premium subscription expired', { userId: req.user.id });
+      //console.log('RestrictToPremium: Premium subscription expired', { userId: req.user.id });
       subscription.plan = 'free';
       subscription.status = 'inactive';
       subscription.subscriptionEnd = null;
@@ -308,7 +372,7 @@ const restrictToPremium = async (req, res, next) => {
       return res.status(403).json(new ApiResponse(403, 'Premium subscription has expired. Please renew to access this feature.'));
     }
 
-    console.log('RestrictToPremium: Access granted', { userId: req.user.id });
+    //console.log('RestrictToPremium: Access granted', { userId: req.user.id });
     next();
   } catch (error) {
     console.error('RestrictToPremium: Error occurred', error);
@@ -318,38 +382,38 @@ const restrictToPremium = async (req, res, next) => {
 
 // Forgot Password Controller
 const forgotPassword = async (req, res) => {
-  console.log('ForgotPassword: Request received', req.body);
+  //console.log('ForgotPassword: Request received', req.body);
   try {
     const { email } = req.body;
 
     // Validate input
-    console.log('ForgotPassword: Validating input');
+    //console.log('ForgotPassword: Validating input');
     if (!email) {
-      console.log('ForgotPassword: Missing email');
+      //console.log('ForgotPassword: Missing email');
       return res.status(400).json(new ApiResponse(400, 'Email is required'));
     }
 
     // Check if user exists
-    console.log('ForgotPassword: Checking if user exists');
+    //console.log('ForgotPassword: Checking if user exists');
     const user = await User.findOne({ email });
     if (!user) {
-      console.log('ForgotPassword: User not found', { email });
+      //console.log('ForgotPassword: User not found', { email });
       return res.status(404).json(new ApiResponse(404, 'User not found'));
     }
     if (!user.isVerified) {
-      console.log('ForgotPassword: User not verified', { email });
+      //console.log('ForgotPassword: User not verified', { email });
       return res.status(400).json(new ApiResponse(400, 'Please verify your email first'));
     }
 
     // Generate OTP
-    console.log('ForgotPassword: Generating OTP');
+    //console.log('ForgotPassword: Generating OTP');
     const otp = crypto.randomInt(100000, 999999).toString();
     user.otp = otp;
     await user.save();
-    console.log('ForgotPassword: OTP saved', { email, otp });
+    //console.log('ForgotPassword: OTP saved', { email, otp });
 
     // Send OTP email
-    console.log('ForgotPassword: Sending OTP email');
+    //console.log('ForgotPassword: Sending OTP email');
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
@@ -358,7 +422,7 @@ const forgotPassword = async (req, res) => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log('ForgotPassword: OTP email sent', { email });
+    //console.log('ForgotPassword: OTP email sent', { email });
 
     res.status(200).json(new ApiResponse(200, 'Password reset OTP sent to your email'));
   } catch (error) {
@@ -369,43 +433,43 @@ const forgotPassword = async (req, res) => {
 
 // Reset Password Controller
 const resetPassword = async (req, res) => {
-  console.log('ResetPassword: Request received', req.body);
+  //console.log('ResetPassword: Request received', req.body);
   try {
     const { email, otp, newPassword } = req.body;
 
     // Validate input
-    console.log('ResetPassword: Validating input');
+    //console.log('ResetPassword: Validating input');
     if (!email || !otp || !newPassword) {
-      console.log('ResetPassword: Missing email, OTP, or new password');
+      //console.log('ResetPassword: Missing email, OTP, or new password');
       return res.status(400).json(new ApiResponse(400, 'Email, OTP, and new password are required'));
     }
 
     // Check if user exists
-    console.log('ResetPassword: Checking if user exists');
+    //console.log('ResetPassword: Checking if user exists');
     const user = await User.findOne({ email });
     if (!user) {
-      console.log('ResetPassword: User not found', { email });
+      //console.log('ResetPassword: User not found', { email });
       return res.status(404).json(new ApiResponse(404, 'User not found'));
     }
     if (!user.isVerified) {
-      console.log('ResetPassword: User not verified', { email });
+      //console.log('ResetPassword: User not verified', { email });
       return res.status(400).json(new ApiResponse(400, 'User not verified'));
     }
 
     // Verify OTP
-    console.log('ResetPassword: Verifying OTP');
+    //console.log('ResetPassword: Verifying OTP');
     if (user.otp !== otp) {
-      console.log('ResetPassword: Invalid OTP', { email, otp });
+      //console.log('ResetPassword: Invalid OTP', { email, otp });
       return res.status(400).json(new ApiResponse(400, 'Invalid OTP'));
     }
 
     // Hash new password
-    console.log('ResetPassword: Hashing new password');
+    //console.log('ResetPassword: Hashing new password');
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
     user.otp = null; // Clear OTP after reset
     await user.save();
-    console.log('ResetPassword: Password reset successful', { email });
+    //console.log('ResetPassword: Password reset successful', { email });
 
     res.status(200).json(new ApiResponse(200, 'Password reset successfully'));
   } catch (error) {
@@ -416,34 +480,34 @@ const resetPassword = async (req, res) => {
 
 // Resend OTP Controller
 const resendOTP = async (req, res) => {
-  console.log('ResendOTP: Request received', req.body);
+  //console.log('ResendOTP: Request received', req.body);
   try {
     const { email } = req.body;
 
     // Validate input
-    console.log('ResendOTP: Validating input');
+    //console.log('ResendOTP: Validating input');
     if (!email) {
-      console.log('ResendOTP: Missing email');
+      //console.log('ResendOTP: Missing email');
       return res.status(400).json(new ApiResponse(400, 'Email is required'));
     }
 
     // Check if user exists
-    console.log('ResendOTP: Checking if user exists');
+    //console.log('ResendOTP: Checking if user exists');
     const user = await User.findOne({ email });
     if (!user) {
-      console.log('ResendOTP: User not found', { email });
+      //console.log('ResendOTP: User not found', { email });
       return res.status(404).json(new ApiResponse(404, 'User not found'));
     }
 
     // Generate new OTP
-    console.log('ResendOTP: Generating new OTP');
+    //console.log('ResendOTP: Generating new OTP');
     const otp = crypto.randomInt(100000, 999999).toString();
     user.otp = otp;
     await user.save();
-    console.log('ResendOTP: OTP saved', { email, otp });
+    //console.log('ResendOTP: OTP saved', { email, otp });
 
     // Send OTP email
-    console.log('ResendOTP: Sending OTP email');
+    //console.log('ResendOTP: Sending OTP email');
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
@@ -452,7 +516,7 @@ const resendOTP = async (req, res) => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log('ResendOTP: OTP email sent', { email });
+    //console.log('ResendOTP: OTP email sent', { email });
 
     res.status(200).json(new ApiResponse(200, `OTP resent to your email for ${user.isVerified ? 'password reset' : 'email verification'}`));
   } catch (error) {

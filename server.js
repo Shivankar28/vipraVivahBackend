@@ -28,11 +28,10 @@ const server = http.createServer(app);
 // Create Socket.IO server
 const io = socketIo(server, {
   cors: {
-    origin: (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV)
-      ? ['http://localhost:5173', 'http://localhost:3000', 'http://192.168.1.5:5173', 'http://192.168.1.5:3000', /^http:\/\/192\.168\.1\.\d+:5173$/]
-      : ['https://vipravivah.in', 'https://www.vipravivah.in', 'http://localhost:3000', 'http://localhost:5173'],
-    methods: ['GET', 'POST'],
-    credentials: true
+    origin: true, // Allow all origins for Socket.IO
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
   }
 });
 
@@ -42,36 +41,12 @@ connectDB();
 // Middleware
 app.use(
   cors({
-    origin: (origin, callback) => {
-      console.log('CORS: Request from origin:', origin);
-      console.log('CORS: NODE_ENV:', process.env.NODE_ENV);
-      
-      const allowedOrigins = (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV)
-        ? ['http://localhost:5173', 'http://localhost:3000', 'http://192.168.1.5:5173', 'http://192.168.1.5:3000']
-        : ['https://vipravivah.in', 'https://www.vipravivah.in', 'http://localhost:3000', 'http://localhost:5173'];
-      
-      console.log('CORS: Allowed origins:', allowedOrigins);
-      
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      
-      // Check if origin is in allowed list
-      if (allowedOrigins.includes(origin)) {
-        console.log('CORS: Origin allowed (exact match):', origin);
-        return callback(null, true);
-      }
-      
-      // Check pattern for local network in development
-      if ((process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) && /^http:\/\/192\.168\.1\.\d+:5173$/.test(origin)) {
-        console.log('CORS: Origin allowed (pattern match):', origin);
-        return callback(null, true);
-      }
-      
-      console.log('CORS: Origin blocked:', origin);
-      return callback(new Error('Not allowed by CORS'));
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    origin: true, // Allow all origins
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Length', 'X-JSON'],
+    maxAge: 86400 // 24 hours
   })
 );
 app.use(express.json());

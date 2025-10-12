@@ -36,32 +36,28 @@ const transformProfileForFrontend = (profile) => {
     lookingFor: profile.lookingFor,
     height: profile.height,
     Aged: profile.Aged,
-    subcaste: profile.subCaste,
+    subCaste: profile.subCaste,
     gotra: profile.gotra,
     motherTongue: profile.motherTongue,
     maritalStatus: profile.maritalStatus,
-    foodHabits: profile.foodHabit,
+    foodHabit: profile.foodHabit,
     currentAddress: profile.currentAddress,
     permanentAddress: profile.permanentAddress,
     isCurrentPermanentSame: profile.isCurrentPermanentSame,
     HighestQualification: profile.HighestQualification,
     specialization: profile.specialization,
-    university: profile.universityCollege,
+    universityCollege: profile.universityCollege,
     yearOfCompletion: profile.yearOfCompletion,
     currentWorking: profile.currentWorking,
     occupation: profile.occupation,
     company: profile.company,
     workLocation: profile.workLocation,
     annualIncome: profile.annualIncome,
-    instagram: profile.instaUrl,
-    facebook: profile.facebookUrl,
-    linkedin: profile.linkedinUrl,
-    idVerification: profile.idVerification
-      ? {
-          type: profile.idVerification.type,
-          number: profile.idVerification.number,
-        }
-      : null,
+    instaUrl: profile.instaUrl,
+    facebookUrl: profile.facebookUrl,
+    linkedinUrl: profile.linkedinUrl,
+    idCardName: profile.idCardName,
+    idCardNo: profile.idCardNo,
     createdAt: profile.createdAt,
     updatedAt: profile.updatedAt,
   };
@@ -79,6 +75,23 @@ const createOrUpdateProfile = async (req, res) => {
       idCardName, idCardNo, currentAddress, permanentAddress, isCurrentPermanentSame, isLivesWithFamily, Aged
     } = req.body;
 
+    console.log('CreateOrUpdateProfile: Destructured fields', {
+      HighestQualification,
+      specialization,
+      universityCollege,
+      yearOfCompletion,
+      currentWorking,
+      occupation,
+      company,
+      workLocation,
+      annualIncome,
+      instaUrl,
+      facebookUrl,
+      linkedinUrl,
+      idCardName,
+      idCardNo
+    });
+
     // Parse JSON fields from FormData
     let parsedCurrentAddress, parsedPermanentAddress;
     try {
@@ -92,6 +105,15 @@ const createOrUpdateProfile = async (req, res) => {
 
     // Validate required fields
     const requiredFields = { profileFor, gender, firstName, lastName, dateOfBirth, gotra, motherTongue, maritalStatus, phoneNumber, lookingFor };
+    
+    // Add occupation fields to required only if currently working
+    if (currentWorking === 'Yes') {
+      requiredFields.occupation = occupation;
+      requiredFields.company = company;
+      requiredFields.workLocation = workLocation;
+      requiredFields.annualIncome = annualIncome;
+    }
+    
     const missingFields = Object.keys(requiredFields).filter(key => !requiredFields[key]);
     if (missingFields.length > 0) {
       console.log('CreateOrUpdateProfile: Missing required fields', { missingFields });
@@ -147,6 +169,8 @@ const createOrUpdateProfile = async (req, res) => {
     // Check if profile exists
     let existingProfile = await Profile.findOne({ userId: req.user.id });
     console.log('CreateOrUpdateProfile: Profile exists check', { profileExists: !!existingProfile });
+    
+    let profile; // Declare profile outside the if/else blocks
 
     if (existingProfile) {
       // Update existing profile
@@ -160,7 +184,7 @@ const createOrUpdateProfile = async (req, res) => {
         }
       }
 
-      let profile = await Profile.findOneAndUpdate(
+      profile = await Profile.findOneAndUpdate(
         { userId: req.user.id },
         {
           $set: {
@@ -189,10 +213,10 @@ const createOrUpdateProfile = async (req, res) => {
             universityCollege,
             yearOfCompletion,
             currentWorking,
-            occupation,
-            company,
-            workLocation,
-            annualIncome,
+            occupation: currentWorking === 'Yes' ? occupation : '',
+            company: currentWorking === 'Yes' ? company : '',
+            workLocation: currentWorking === 'Yes' ? workLocation : '',
+            annualIncome: currentWorking === 'Yes' ? annualIncome : '',
             instaUrl,
             facebookUrl,
             linkedinUrl,
@@ -213,7 +237,8 @@ const createOrUpdateProfile = async (req, res) => {
     } else {
       // Create new profile
       console.log('CreateOrUpdateProfile: Creating new profile');
-      profile = new Profile({
+      
+      const profileDataToSave = {
         userId: req.user.id,
         lookingFor,
         profileFor,
@@ -240,10 +265,10 @@ const createOrUpdateProfile = async (req, res) => {
         universityCollege,
         yearOfCompletion,
         currentWorking,
-        occupation,
-        company,
-        workLocation,
-        annualIncome,
+        occupation: currentWorking === 'Yes' ? occupation : '',
+        company: currentWorking === 'Yes' ? company : '',
+        workLocation: currentWorking === 'Yes' ? workLocation : '',
+        annualIncome: currentWorking === 'Yes' ? annualIncome : '',
         instaUrl,
         facebookUrl,
         linkedinUrl,
@@ -252,7 +277,11 @@ const createOrUpdateProfile = async (req, res) => {
         profilePicture,
         isLivesWithFamily: isLivesWithFamily || null,
         Aged: age
-      });
+      };
+      
+      console.log('CreateOrUpdateProfile: Profile data being saved:', JSON.stringify(profileDataToSave, null, 2));
+      
+      profile = new Profile(profileDataToSave);
       await profile.save().catch(err => {
         console.error('CreateOrUpdateProfile: Failed to save new profile', err);
         throw err;

@@ -6,14 +6,14 @@ const ApiResponse = require('../utils/apiResponse');
 // Utility function to create notification
 const createNotification = async (notificationData) => {
   try {
-    console.log('createNotification: Starting with data:', notificationData);
+    //console.log('createNotification: Starting with data:', notificationData);
     
     const notification = await Notification.createNotification(notificationData);
-    console.log('createNotification: Notification created successfully:', notification._id);
+    //console.log('createNotification: Notification created successfully:', notification._id);
     
     // Emit real-time notification via WebSocket
     if (global.io) {
-      console.log('createNotification: Emitting WebSocket notification to user:', notificationData.recipient);
+      //console.log('createNotification: Emitting WebSocket notification to user:', notificationData.recipient);
       
       global.io.to(`user_${notificationData.recipient}`).emit('new_notification', {
         type: 'notification',
@@ -35,9 +35,9 @@ const createNotification = async (notificationData) => {
         data: { unreadCount }
       });
       
-      console.log('createNotification: WebSocket notifications emitted successfully');
+      //console.log('createNotification: WebSocket notifications emitted successfully');
     } else {
-      console.log('createNotification: WebSocket not available (global.io is null)');
+      //console.log('createNotification: WebSocket not available (global.io is null)');
     }
     
     return notification;
@@ -184,7 +184,7 @@ const clearAllNotifications = async (req, res) => {
 // Create notification for profile like
 const createLikeNotification = async (likerId, likedProfileId) => {
   try {
-    console.log('createLikeNotification: Starting with', { likerId, likedProfileId });
+    //console.log('createLikeNotification: Starting with', { likerId, likedProfileId });
     
     // Get liker's profile info
     const likerProfile = await Profile.findOne({ userId: likerId });
@@ -218,7 +218,7 @@ const createLikeNotification = async (likerId, likedProfileId) => {
       priority: 'medium'
     });
     
-    console.log(`Like notification created for user ${likedProfile.userId._id} from ${likerId}`);
+    //console.log(`Like notification created for user ${likedProfile.userId._id} from ${likerId}`);
   } catch (error) {
     console.error('Error creating like notification:', error);
   }
@@ -227,7 +227,7 @@ const createLikeNotification = async (likerId, likedProfileId) => {
 // Create notification for mutual like (match)
 const createMatchNotification = async (user1Id, user2Id) => {
   try {
-    console.log('createMatchNotification: Starting with', { user1Id, user2Id });
+    //console.log('createMatchNotification: Starting with', { user1Id, user2Id });
     
     // Get both users' profile info
     const [profile1, profile2] = await Promise.all([
@@ -273,7 +273,7 @@ const createMatchNotification = async (user1Id, user2Id) => {
       })
     ]);
     
-    console.log(`Match notifications created for users ${user1Id} and ${user2Id}`);
+    //console.log(`Match notifications created for users ${user1Id} and ${user2Id}`);
   } catch (error) {
     console.error('Error creating match notifications:', error);
   }
@@ -291,7 +291,7 @@ const createSystemNotification = async (userId, title, message, data = {}) => {
       priority: 'medium'
     });
     
-    console.log(`System notification created for user ${userId}: ${title}`);
+    //console.log(`System notification created for user ${userId}: ${title}`);
   } catch (error) {
     console.error('Error creating system notification:', error);
   }
@@ -314,7 +314,7 @@ const createProfileUpdateNotification = async (userId, isNewProfile = false) => 
       priority: 'medium'
     });
     
-    console.log(`Profile update notification created for user ${userId}`);
+    //console.log(`Profile update notification created for user ${userId}`);
   } catch (error) {
     console.error('Error creating profile update notification:', error);
   }
@@ -332,7 +332,7 @@ const createSubscriptionNotification = async (userId, type, message) => {
       priority: 'high'
     });
     
-    console.log(`Subscription notification created for user ${userId}: ${type}`);
+    //console.log(`Subscription notification created for user ${userId}: ${type}`);
   } catch (error) {
     console.error('Error creating subscription notification:', error);
   }
@@ -342,7 +342,7 @@ const createSubscriptionNotification = async (userId, type, message) => {
 const cleanupOldNotifications = async () => {
   try {
     const result = await Notification.cleanupOldNotifications(30); // 30 days
-    console.log(`Cleaned up ${result.deletedCount} old notifications`);
+    //console.log(`Cleaned up ${result.deletedCount} old notifications`);
     return result;
   } catch (error) {
     console.error('Error cleaning up old notifications:', error);
