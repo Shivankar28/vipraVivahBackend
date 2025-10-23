@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const http = require('http');
 const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
@@ -50,6 +51,7 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(cookieParser()); // Parse cookies for refresh token
 
 // Routes
 app.use('/api/auth', authRoutes);

@@ -9,6 +9,8 @@ const {
    resetPassword,
    resendOTP,
    authenticateToken,
+   refreshToken,
+   logout,
 } = require('../controllers/authController');
 
 const router = express.Router();
@@ -21,6 +23,12 @@ router.post('/verify-otp', verifyOTP);
 
 // Route to log in a user
 router.post('/login', login);
+
+// Route to refresh access token
+router.post('/refresh', refreshToken);
+
+// Route to logout user
+router.post('/logout', logout);
 
 // Route to get the authenticated user's profile
 router.get('/profile', authenticateToken, getProfile);

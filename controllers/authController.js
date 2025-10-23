@@ -6,6 +6,11 @@ const User = require('../models/User');
 const Subscription = require('../models/Subscription');
 const ApiResponse = require('../utils/apiResponse');
 const Profile = require('../models/Profile');
+const { 
+  generateAccessToken, 
+  generateRefreshToken, 
+  verifyRefreshToken 
+} = require('../utils/tokenUtils');
 
 // Nodemailer setup
 //console.log('Nodemailer: Initializing transporter');
@@ -140,15 +145,33 @@ const verifyOTP = async (req, res) => {
     }
     const plan = subscription.plan;
 
-    // Generate JWT with subscription plan
-    //console.log('VerifyOTP: Generating JWT');
-    const token = jwt.sign(
-      { id: user._id, email: user.email, isProfileFlag: user.isProfileFlag, plan },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
+    // Generate access and refresh tokens
+    //console.log('VerifyOTP: Generating tokens');
+    const accessToken = generateAccessToken({ 
+      id: user._id, 
+      email: user.email, 
+      isProfileFlag: user.isProfileFlag, 
+      plan,
+      role: user.role 
+    });
+    const refreshToken = generateRefreshToken({ 
+      id: user._id, 
+      email: user.email 
+    });
 
-    res.status(200).json(new ApiResponse(200, 'Email verified successfully', { token }));
+    // Save refresh token to database
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    // Set refresh token as httpOnly cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // HTTPS in production
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.status(200).json(new ApiResponse(200, 'Email verified successfully', { token: accessToken }));
   } catch (error) {
     console.error('VerifyOTP: Error occurred', error);
     res.status(500).json(new ApiResponse(500, 'Error during OTP verification', null, error.message));
@@ -215,15 +238,33 @@ const login = async (req, res) => {
     }
     const plan = subscription.plan;
 
-    // Generate JWT with subscription plan and role
-    //console.log('Login: Generating JWT');
-    const token = jwt.sign(
-      { id: user._id, email: user.email, isProfileFlag: user.isProfileFlag, plan, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
+    // Generate access and refresh tokens
+    //console.log('Login: Generating tokens');
+    const accessToken = generateAccessToken({ 
+      id: user._id, 
+      email: user.email, 
+      isProfileFlag: user.isProfileFlag, 
+      plan,
+      role: user.role 
+    });
+    const refreshToken = generateRefreshToken({ 
+      id: user._id, 
+      email: user.email 
+    });
 
-    res.status(200).json(new ApiResponse(200, 'Login successful', { token }, null));
+    // Save refresh token to database
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    // Set refresh token as httpOnly cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // HTTPS in production
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.status(200).json(new ApiResponse(200, 'Login successful', { token: accessToken }, null));
   } catch (error) {
     console.error('Login: Error occurred', error);
     res.status(500).json(new ApiResponse(500, 'Error during login', null, error.message));
@@ -525,6 +566,131 @@ const resendOTP = async (req, res) => {
   }
 };
 
+// Refresh Token Controller
+const refreshToken = async (req, res) => {
+  //console.log('RefreshToken: Request received');
+  try {
+    // Get refresh token from cookie
+    const refreshToken = req.cookies.refreshToken;
+    
+    if (!refreshToken) {
+      //console.log('RefreshToken: No refresh token provided');
+      return res.status(401).json(new ApiResponse(401, 'Refresh token not found'));
+    }
+
+    // Verify refresh token
+    //console.log('RefreshToken: Verifying refresh token');
+    let decoded;
+    try {
+      decoded = verifyRefreshToken(refreshToken);
+    } catch (error) {
+      //console.log('RefreshToken: Invalid refresh token', error);
+      return res.status(403).json(new ApiResponse(403, 'Invalid or expired refresh token'));
+    }
+
+    // Find user and verify refresh token matches
+    //console.log('RefreshToken: Finding user');
+    const user = await User.findById(decoded.id);
+    if (!user || user.refreshToken !== refreshToken) {
+      //console.log('RefreshToken: User not found or token mismatch');
+      return res.status(403).json(new ApiResponse(403, 'Invalid refresh token'));
+    }
+
+    // Fetch subscription and check for expiration
+    //console.log('RefreshToken: Fetching subscription plan');
+    let subscription = await Subscription.findOne({ userId: user._id });
+    if (!subscription) {
+      subscription = new Subscription({
+        userId: user._id,
+        plan: 'free',
+        status: 'active',
+        subscriptionStart: new Date(),
+      });
+      await subscription.save();
+      user.subscription = subscription._id;
+      await user.save();
+    }
+    if (subscription.plan === 'premium' && subscription.subscriptionEnd < new Date()) {
+      subscription.plan = 'free';
+      subscription.status = 'inactive';
+      subscription.subscriptionEnd = null;
+      await subscription.save();
+    }
+    const plan = subscription.plan;
+
+    // Generate new access token
+    //console.log('RefreshToken: Generating new access token');
+    const newAccessToken = generateAccessToken({ 
+      id: user._id, 
+      email: user.email, 
+      isProfileFlag: user.isProfileFlag, 
+      plan,
+      role: user.role 
+    });
+
+    // Generate new refresh token (token rotation)
+    //console.log('RefreshToken: Generating new refresh token (rotation)');
+    const newRefreshToken = generateRefreshToken({ 
+      id: user._id, 
+      email: user.email 
+    });
+
+    // Update refresh token in database
+    user.refreshToken = newRefreshToken;
+    await user.save();
+
+    // Set new refresh token as httpOnly cookie
+    res.cookie('refreshToken', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    //console.log('RefreshToken: Tokens refreshed successfully');
+    res.status(200).json(new ApiResponse(200, 'Token refreshed successfully', { token: newAccessToken }));
+  } catch (error) {
+    console.error('RefreshToken: Error occurred', error);
+    res.status(500).json(new ApiResponse(500, 'Error refreshing token', null, error.message));
+  }
+};
+
+// Logout Controller
+const logout = async (req, res) => {
+  //console.log('Logout: Request received');
+  try {
+    // Get refresh token from cookie
+    const refreshToken = req.cookies.refreshToken;
+    
+    if (refreshToken) {
+      // Find user and clear refresh token
+      const decoded = verifyRefreshToken(refreshToken);
+      const user = await User.findById(decoded.id);
+      
+      if (user) {
+        user.refreshToken = null;
+        await user.save();
+        //console.log('Logout: Refresh token cleared from database');
+      }
+    }
+
+    // Clear refresh token cookie
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
+
+    //console.log('Logout: Logout successful');
+    res.status(200).json(new ApiResponse(200, 'Logout successful'));
+  } catch (error) {
+    console.error('Logout: Error occurred', error);
+    // Even if there's an error, clear the cookie
+    res.clearCookie('refreshToken');
+    res.status(200).json(new ApiResponse(200, 'Logout successful'));
+  }
+};
+
 module.exports = {
   signup,
   verifyOTP,
@@ -535,4 +701,6 @@ module.exports = {
   forgotPassword,
   resetPassword,
   resendOTP,
+  refreshToken,
+  logout,
 };

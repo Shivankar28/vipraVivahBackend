@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false },
   isProfileFlag: { type: Boolean, default: false }, // New flag for profile completion
   role: { type: String, enum: ['user', 'admin'], default: 'user' }, // Admin role
+  refreshToken: { type: String }, // Refresh token for token rotation
   createdAt: { type: Date, default: Date.now },
   subscription: {
     type: mongoose.Schema.Types.ObjectId,
