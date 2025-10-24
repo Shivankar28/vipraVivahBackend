@@ -9,7 +9,9 @@ const createOrUpdatePreferences = async (req, res) => {
     const userId = req.user.id;
     const preferenceData = req.body;
 
-    //console.log('createOrUpdatePreferences: Request received', { userId, preferenceData });
+    console.log('createOrUpdatePreferences: Request received', { userId, preferenceData });
+    console.log('createOrUpdatePreferences: Request body type:', typeof req.body);
+    console.log('createOrUpdatePreferences: Request body keys:', Object.keys(req.body));
 
     // Check if user has a profile
     const profile = await Profile.findOne({ userId });
@@ -18,13 +20,22 @@ const createOrUpdatePreferences = async (req, res) => {
     }
 
     // Create or update preferences
+    console.log('createOrUpdatePreferences: About to save preferences to database');
     const preferences = await UserPreference.findOneAndUpdate(
       { userId },
       { ...preferenceData, userId },
       { new: true, upsert: true }
     );
 
-    //console.log('createOrUpdatePreferences: Preferences saved', { preferences: preferences._id });
+    console.log('createOrUpdatePreferences: Preferences saved successfully', { 
+      preferencesId: preferences._id,
+      userId: preferences.userId,
+      savedData: {
+        preferredAgeRange: preferences.preferredAgeRange,
+        preferredEducation: preferences.preferredEducation,
+        matchThreshold: preferences.matchThreshold
+      }
+    });
 
     res.status(200).json(new ApiResponse(200, 'Preferences saved successfully', { preferences }));
   } catch (error) {
@@ -53,6 +64,177 @@ const getUserPreferences = async (req, res) => {
     console.error('getUserPreferences: Error occurred', error);
     res.status(500).json(new ApiResponse(500, 'Error retrieving preferences', null, error.message));
   }
+};
+
+// Update user preferences (PATCH - partial update)
+const updatePreferences = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const updateData = req.body;
+
+    //console.log('updatePreferences: Request received', { userId, updateData });
+
+    // Check if preferences exist
+    const existingPreferences = await UserPreference.findOne({ userId });
+    if (!existingPreferences) {
+      return res.status(404).json(new ApiResponse(404, 'No preferences found. Please create preferences first.'));
+    }
+
+    // Update preferences
+    const updatedPreferences = await UserPreference.findOneAndUpdate(
+      { userId },
+      { ...updateData, userId },
+      { new: true, runValidators: true }
+    );
+
+    //console.log('updatePreferences: Preferences updated', { preferences: updatedPreferences._id });
+
+    res.status(200).json(new ApiResponse(200, 'Preferences updated successfully', { preferences: updatedPreferences }));
+  } catch (error) {
+    console.error('updatePreferences: Error occurred', error);
+    res.status(500).json(new ApiResponse(500, 'Error updating preferences', null, error.message));
+  }
+};
+
+// Delete user preferences
+const deletePreferences = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    //console.log('deletePreferences: Request received', { userId });
+
+    const deletedPreferences = await UserPreference.findOneAndDelete({ userId });
+    
+    if (!deletedPreferences) {
+      return res.status(404).json(new ApiResponse(404, 'No preferences found to delete'));
+    }
+
+    //console.log('deletePreferences: Preferences deleted', { preferences: deletedPreferences._id });
+
+    res.status(200).json(new ApiResponse(200, 'Preferences deleted successfully', { preferences: deletedPreferences }));
+  } catch (error) {
+    console.error('deletePreferences: Error occurred', error);
+    res.status(500).json(new ApiResponse(500, 'Error deleting preferences', null, error.message));
+  }
+};
+
+// Get all preferences (admin only)
+const getAllPreferences = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+    const skip = (page - 1) * limit;
+
+    //console.log('getAllPreferences: Request received', { page, limit, sortBy, sortOrder });
+
+    const sortOptions = {};
+    sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+    const preferences = await UserPreference.find()
+      .populate('userId', 'firstName lastName email')
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await UserPreference.countDocuments();
+
+    //console.log('getAllPreferences: Preferences retrieved', { count: preferences.length, total });
+
+    res.status(200).json(new ApiResponse(200, 'All preferences retrieved successfully', {
+      preferences,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    }));
+  } catch (error) {
+    console.error('getAllPreferences: Error occurred', error);
+    res.status(500).json(new ApiResponse(500, 'Error retrieving all preferences', null, error.message));
+  }
+};
+
+// Get preferences by user ID (admin only)
+const getPreferencesByUserId = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    //console.log('getPreferencesByUserId: Request received', { userId });
+
+    const preferences = await UserPreference.findOne({ userId }).populate('userId', 'firstName lastName email');
+    
+    if (!preferences) {
+      return res.status(404).json(new ApiResponse(404, 'No preferences found for this user'));
+    }
+
+    //console.log('getPreferencesByUserId: Preferences retrieved', { preferences: preferences._id });
+
+    res.status(200).json(new ApiResponse(200, 'User preferences retrieved successfully', { preferences }));
+  } catch (error) {
+    console.error('getPreferencesByUserId: Error occurred', error);
+    res.status(500).json(new ApiResponse(500, 'Error retrieving user preferences', null, error.message));
+  }
+};
+
+// Reset preferences to default
+const resetPreferences = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    //console.log('resetPreferences: Request received', { userId });
+
+    // Delete existing preferences
+    await UserPreference.findOneAndDelete({ userId });
+
+    // Create default preferences
+    const defaultPreferences = await createDefaultPreferences(userId);
+
+    //console.log('resetPreferences: Preferences reset to default', { preferences: defaultPreferences._id });
+
+    res.status(200).json(new ApiResponse(200, 'Preferences reset to default successfully', { preferences: defaultPreferences }));
+  } catch (error) {
+    console.error('resetPreferences: Error occurred', error);
+    res.status(500).json(new ApiResponse(500, 'Error resetting preferences', null, error.message));
+  }
+};
+
+// Validate preference data
+const validatePreferenceData = (data) => {
+  const errors = [];
+
+  // Validate age range
+  if (data.preferredAgeRange) {
+    if (data.preferredAgeRange.min && (data.preferredAgeRange.min < 18 || data.preferredAgeRange.min > 80)) {
+      errors.push('Minimum age must be between 18 and 80');
+    }
+    if (data.preferredAgeRange.max && (data.preferredAgeRange.max < 18 || data.preferredAgeRange.max > 80)) {
+      errors.push('Maximum age must be between 18 and 80');
+    }
+    if (data.preferredAgeRange.min && data.preferredAgeRange.max && data.preferredAgeRange.min > data.preferredAgeRange.max) {
+      errors.push('Minimum age cannot be greater than maximum age');
+    }
+  }
+
+  // Validate match threshold
+  if (data.matchThreshold && (data.matchThreshold < 0 || data.matchThreshold > 100)) {
+    errors.push('Match threshold must be between 0 and 100');
+  }
+
+  // Validate criteria weights
+  if (data.criteriaWeights) {
+    const weights = data.criteriaWeights;
+    const totalWeight = Object.values(weights).reduce((sum, weight) => sum + (weight || 0), 0);
+    if (totalWeight > 100) {
+      errors.push('Total criteria weights cannot exceed 100');
+    }
+  }
+
+  // Validate notification frequency
+  if (data.notificationFrequency && !['immediate', 'daily', 'weekly'].includes(data.notificationFrequency)) {
+    errors.push('Notification frequency must be immediate, daily, or weekly');
+  }
+
+  return errors;
 };
 
 // Find matching profiles for a user
@@ -360,6 +542,12 @@ const createDefaultPreferences = async (userId) => {
 module.exports = {
   createOrUpdatePreferences,
   getUserPreferences,
+  updatePreferences,
+  deletePreferences,
+  getAllPreferences,
+  getPreferencesByUserId,
+  resetPreferences,
+  validatePreferenceData,
   findMatches,
   findInterestedUsers,
   createDefaultPreferences
